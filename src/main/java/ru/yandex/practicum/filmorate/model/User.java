@@ -8,12 +8,14 @@ import lombok.Data;
 @Data
 @Builder
 public class User {
-    Long id;
-    @Email @NotBlank(message = "электронная почта не может быть пустой и должна содержать символ @")
-    String email;
-    @NotBlank(message = "логин не может быть пустым и содержать пробелы")
-    String login;
-    String name;
-    @PastOrPresent(message = "дата рождения не может быть в будущем")
-    LocalDate birthday;
+    private Long id;
+    @Email(message = "Некорректный формат email")
+    @NotBlank(message = "Email не может быть пустым")
+    private String email;
+    @NotBlank(message = "Логин не может быть пустым")
+    @Pattern(regexp = "\\S+", message = "Логин не может содержать пробелы")
+    private String login;
+    private String name;
+    @PastOrPresent(message = "Дата рождения не может быть в будущем")
+    private LocalDate birthday;
 }

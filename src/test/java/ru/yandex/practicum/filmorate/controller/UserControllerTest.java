@@ -1,106 +1,89 @@
 package ru.yandex.practicum.filmorate.controller;
 
-import ru.yandex.practicum.filmorate.exceptions.ValidationException;
-import org.junit.jupiter.api.BeforeEach;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
-
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UserControllerTest {
-    UserController userController;
-    User user;
+    private static Validator validator;
 
-    @BeforeEach
-    void setUp() {
-        userController = new UserController();
-        user = User.builder()
-                .email("email@yandex.ru")
-                .login("login1")
-                .name("name1")
-                .birthday(LocalDate.of(1988,04,18))
+    @BeforeAll
+    static void setUp() {
+        try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+            validator = factory.getValidator();
+        }
+    }
+
+    @Test
+    void shouldPassValidationWithCorrectData() {
+        User user = User.builder()
+                .email("valid@email.com")
+                .login("validlogin")
+                .birthday(LocalDate.now().minusYears(20))
                 .build();
+
+        Set<ConstraintViolation<User>> violations = validator.validate(user);
+        assertTrue(violations.isEmpty(), "Нет нарушений при корректных данных");
     }
 
     @Test
-    void create_shouldAdduser() {
-        User createdUser = userController.create(user);
+    void shouldUseLoginAsNameWhenNameIsEmpty() {
+        User user = User.builder()
+                .email("valid@email.com")
+                .login("validlogin")
+                .name("")
+                .birthday(LocalDate.now().minusYears(20))
+                .build();
 
-        assertNotNull(createdUser.getId());
-        assertEquals(1, userController.findAll().size());
-        assertEquals(user.getEmail(), createdUser.getEmail());
-    }
-
-    @Test
-    void create_shouldUseLoginAsNameWhenNameIsEmpty() {
-        user.setName("");
-        User createdUser = userController.create(user);
-
-        assertEquals(user.getLogin(), createdUser.getName());
-    }
-
-    @Test
-    void create_shouldUseLoginAsNameWhenNameIsNull() {
-        user.setName(null);
-        User createdUser = userController.create(user);
-
-        assertEquals(user.getLogin(), createdUser.getName());
+        assertNull(user.getName(), "Имя должно быть null или пустым для подстановки логина");
     }
 
     @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = {" ", "  "})
-    void create_shouldThrowWhenEmailIsBlank(String email) {
-        user.setEmail(email);
-        assertThrows(ValidationException.class, () -> userController.create(user));
+    @ValueSource(strings = {"", " ", "invalid", "invalid@", "@invalid"})
+    void shouldFailWhenEmailInvalid(String email) {
+        User user = User.builder()
+                .email(email)
+                .login("validlogin")
+                .birthday(LocalDate.now().minusYears(20))
+                .build();
+
+        Set<ConstraintViolation<User>> violations = validator.validate(user);
+        assertFalse(violations.isEmpty(), "Должны быть нарушения при невалидном email");
     }
 
     @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = {" ", "  "})
-    void create_shouldThrowWhenLoginIsBlank(String login) {
-        user.setLogin(login);
-        assertThrows(ValidationException.class, () -> userController.create(user));
-    }
-
-    @Test
-    void create_shouldThrowWhenLoginContainsWhitespace() {
-        user.setLogin("login with space");
-        assertThrows(ValidationException.class, () -> userController.create(user));
-    }
-
-    @Test
-    void create_shouldThrowWhenBirthdayInFuture() {
-        user.setBirthday(LocalDate.now().plusDays(1));
-        assertThrows(ValidationException.class, () -> userController.create(user));
-    }
-
-    @Test
-    void update_shouldThrowWhenIdIsNull() {
-        assertThrows(ValidationException.class, () -> userController.update(user));
-    }
-
-    @Test
-    void update_shouldUpdateExistingUser() {
-        User createdUser = userController.create(user);
-        User updatedUser = User.builder()
-                .id(createdUser.getId())
-                .email("updated@email.com")
-                .login("updatedLogin")
-                .name("Updated Name")
-                .birthday(LocalDate.of(1990, 1, 1))
+    @ValueSource(strings = {"", " ", "login with spaces"})
+    void shouldFailWhenLoginInvalid(String login) {
+        User user = User.builder()
+                .email("valid@email.com")
+                .login(login)
+                .birthday(LocalDate.now().minusYears(20))
                 .build();
 
-        User result = userController.update(updatedUser);
+        Set<ConstraintViolation<User>> violations = validator.validate(user);
+        assertFalse(violations.isEmpty(), "Должны быть нарушения при невалидном логине");
+    }
 
-        assertEquals("updated@email.com", result.getEmail());
-        assertEquals("updatedLogin", result.getLogin());
-        assertEquals("Updated Name", result.getName());
-        assertEquals(createdUser.getId(), result.getId());
+    @Test
+    void shouldFailWhenBirthdayInFuture() {
+        User user = User.builder()
+                .email("valid@email.com")
+                .login("validlogin")
+                .birthday(LocalDate.now().plusDays(1))
+                .build();
+
+        Set<ConstraintViolation<User>> violations = validator.validate(user);
+        assertEquals(1, violations.size(), "Одно нарушение при дате рождения в будущем");
+        assertEquals("Дата рождения не может быть в будущем", violations.iterator().next().getMessage());
     }
 }

@@ -1,6 +1,8 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,8 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
 import ru.yandex.practicum.filmorate.exceptions.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.validator.FilmValidator;
-
 
 @RestController
 @RequestMapping("/films")
@@ -18,21 +18,17 @@ import ru.yandex.practicum.filmorate.validator.FilmValidator;
 public class FilmController {
     private final Map<Long, Film> films = new HashMap<>();
 
-    //добавление фильма
     @PostMapping
     public Film create(@Valid @RequestBody Film film) {
-        // проверяем выполнение необходимых условий
-        FilmValidator.validate(film);
+        validateFilm(film);
         film.setId(getNextId());
         films.put(film.getId(), film);
         log.info("Добавлен новый фильм: {}", film.getName());
         return film;
     }
 
-    //обновление фильма
     @PutMapping
     public Film update(@Valid @RequestBody Film newFilm) {
-        // проверяем необходимые условия
         if (newFilm.getId() == null) {
             log.info("Не указан ID");
             throw new ValidationException("Id должен быть указан");
@@ -40,9 +36,8 @@ public class FilmController {
         if (!films.containsKey(newFilm.getId())) {
             throw new NotFoundException("Фильм с id = " + newFilm.getId() + " не найден");
         }
-        FilmValidator.validate(newFilm);
+        validateFilm(newFilm);
         Film oldFilm = films.get(newFilm.getId());
-        // если фильм найден и все условия соблюдены, обновляем содержимое
         oldFilm.setName(newFilm.getName());
         oldFilm.setDescription(newFilm.getDescription());
         oldFilm.setDuration(newFilm.getDuration());
@@ -51,13 +46,17 @@ public class FilmController {
         return oldFilm;
     }
 
-    //получение всех фильмов
     @GetMapping
     public Collection<Film> findAll() {
         return films.values();
     }
 
-    // вспомогательный метод для генерации идентификатора нового фильма
+    private void validateFilm(Film film) {
+        if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
+            throw new ValidationException("Дата релиза не может быть раньше 28 декабря 1895 года");
+        }
+    }
+
     private long getNextId() {
         long currentMaxId = films.keySet()
                 .stream()

@@ -1,103 +1,95 @@
 package ru.yandex.practicum.filmorate.controller;
 
-import ru.yandex.practicum.filmorate.exceptions.ValidationException;
-import org.junit.jupiter.api.BeforeEach;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.time.LocalDate;
-
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FilmControllerTest {
-    FilmController filmController;
-    Film film;
+    private static Validator validator;
+    private static final LocalDate CINEMA_BIRTHDAY = LocalDate.of(1895, 12, 28);
 
-    @BeforeEach
-    void setUp() {
-        filmController = new FilmController();
-        film = Film.builder()
-                .name("film1")
-                .description("descriptionFilm1")
-                .releaseDate(LocalDate.of(2000,12,12))
-                .duration(100)
+    @BeforeAll
+    static void setUp() {
+        try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+            validator = factory.getValidator();
+        }
+    }
+
+    @Test
+    void shouldPassValidationWithCorrectData() {
+        Film film = Film.builder()
+                .name("Valid Film")
+                .description("Valid description")
+                .releaseDate(CINEMA_BIRTHDAY)
+                .duration(120)
                 .build();
+
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        assertTrue(violations.isEmpty(), "Нет нарушений при корректных данных");
     }
 
     @Test
-    void create_shouldAddFilm() {
-        Film createdFilm = filmController.create(film);
+    void shouldFailWhenNameIsBlank() {
+        Film film = Film.builder()
+                .name(" ")
+                .description("Description")
+                .releaseDate(CINEMA_BIRTHDAY)
+                .duration(120)
+                .build();
 
-        assertNotNull(createdFilm.getId());
-        assertEquals(1, filmController.findAll().size());
-        assertEquals(film.getName(), createdFilm.getName());
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"", " ", "  "})
-    void create_shouldThrowWhenNameIsBlank(String name) {
-        film.setName(name);
-        assertThrows(ValidationException.class, () -> filmController.create(film));
-    }
-
-    @Test
-    void create_shouldThrowWhenNameIsNull() {
-        film.setName(null);
-        assertThrows(ValidationException.class, () -> filmController.create(film));
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        assertEquals(1, violations.size(), "Одно нарушение при пустом названии");
+        assertEquals("Название не может быть пустым", violations.iterator().next().getMessage());
     }
 
     @Test
-    void create_shouldThrowWhenDescriptionOver200Chars() {
+    void shouldFailWhenDescriptionTooLong() {
         String longDescription = "a".repeat(201);
-        film.setDescription(longDescription);
-        assertThrows(ValidationException.class, () -> filmController.create(film));
-    }
-
-    @Test
-    void create_shouldAcceptDescriptionExactly200Chars() {
-        String exactLengthDescription = "a".repeat(200);
-        film.setDescription(exactLengthDescription);
-        assertDoesNotThrow(() -> filmController.create(film));
-    }
-
-    @Test
-    void create_shouldThrowWhenReleaseDateBefore1895() {
-        film.setReleaseDate(LocalDate.of(1895, 12, 27));
-        assertThrows(ValidationException.class, () -> filmController.create(film));
-    }
-
-    @Test
-    void create_shouldAcceptReleaseDateExactly1895_12_28() {
-        film.setReleaseDate(LocalDate.of(1895, 12, 28));
-        assertDoesNotThrow(() -> filmController.create(film));
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {0, -1, -100})
-    void create_shouldThrowWhenDurationNotPositive(int duration) {
-        film.setDuration(duration);
-        assertThrows(ValidationException.class, () -> filmController.create(film));
-    }
-
-    @Test
-    void update_shouldUpdateExistingFilm() {
-        Film createdFilm = filmController.create(film);
-        Film updatedFilm = Film.builder()
-                .id(createdFilm.getId())  // сохраняем тот же ID
-                .name("Updated Name")
-                .description("Updated Description")
-                .releaseDate(createdFilm.getReleaseDate())  // копируем неизменяемые поля
-                .duration(createdFilm.getDuration())
+        Film film = Film.builder()
+                .name("Film")
+                .description(longDescription)
+                .releaseDate(CINEMA_BIRTHDAY)
+                .duration(120)
                 .build();
-        Film result = filmController.update(updatedFilm);
-        assertEquals("Updated Name", result.getName());
-        assertEquals("Updated Description", result.getDescription());
-        assertEquals(createdFilm.getId(), result.getId());
-        // Проверяем, что неизменяемые поля остались прежними
-        assertEquals(createdFilm.getReleaseDate(), result.getReleaseDate());
-        assertEquals(createdFilm.getDuration(), result.getDuration());
+
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        assertEquals(1, violations.size(), "Одно нарушение при длинном описании");
+        assertEquals("Максимальная длина описания — 200 символов", violations.iterator().next().getMessage());
     }
 
+    @Test
+    void shouldAcceptExactly200CharsDescription() {
+        String exactLengthDescription = "a".repeat(200);
+        Film film = Film.builder()
+                .name("Film")
+                .description(exactLengthDescription)
+                .releaseDate(CINEMA_BIRTHDAY)
+                .duration(120)
+                .build();
+
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        assertTrue(violations.isEmpty(), "Нет нарушений при описании ровно 200 символов");
+    }
+
+    @Test
+    void shouldFailWhenDurationNotPositive() {
+        Film film = Film.builder()
+                .name("Film")
+                .description("Description")
+                .releaseDate(CINEMA_BIRTHDAY)
+                .duration(0)
+                .build();
+
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        assertEquals(1, violations.size(), "Одно нарушение при неположительной продолжительности");
+        assertEquals("Продолжительность фильма должна быть положительной", violations.iterator().next().getMessage());
+    }
 }

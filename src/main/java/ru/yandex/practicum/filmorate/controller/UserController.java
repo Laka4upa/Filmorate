@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
 import ru.yandex.practicum.filmorate.exceptions.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.validator.UserValidator;
 
 @RestController
 @RequestMapping("/users")
@@ -17,11 +16,8 @@ import ru.yandex.practicum.filmorate.validator.UserValidator;
 public class UserController {
     private final Map<Long, User> users = new HashMap<>();
 
-    //создание пользователя
     @PostMapping
     public User create(@Valid @RequestBody User user) {
-        // проверяем выполнение необходимых условий
-        UserValidator.validate(user);
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
             log.info("Имя пользователя не указано, будет использован логин: {}", user.getLogin());
@@ -32,18 +28,16 @@ public class UserController {
         return user;
     }
 
-    //обновление пользователя
     @PutMapping
     public User update(@Valid @RequestBody User user) {
-        // проверяем необходимые условия
         if (user.getId() == null) {
-            log.info("UPD:не указан Id при поиске пользователя");
+            log.info("UPD: не указан Id при поиске пользователя");
             throw new ValidationException("Id должен быть указан");
         }
         if (!users.containsKey(user.getId())) {
             throw new NotFoundException("Пользователь с id = " + user.getId() + " не найден");
         }
-        UserValidator.validate(user);
+
         User oldUser = users.get(user.getId());
         oldUser.setEmail(user.getEmail());
         oldUser.setName(user.getName());
@@ -53,7 +47,6 @@ public class UserController {
         return oldUser;
     }
 
-    //получение списка всех пользователей
     @GetMapping
     public Collection<User> findAll() {
         return users.values();
