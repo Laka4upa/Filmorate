@@ -45,7 +45,8 @@ class UserControllerTest {
                 .birthday(LocalDate.now().minusYears(20))
                 .build();
 
-        assertNull(user.getName(), "Имя должно быть null или пустым для подстановки логина");
+        assertTrue(user.getName() == null || user.getName().isEmpty(),
+                "Имя должно быть null или пустым для подстановки логина");
     }
 
     @ParameterizedTest
