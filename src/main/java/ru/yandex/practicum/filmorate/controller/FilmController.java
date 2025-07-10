@@ -47,6 +47,7 @@ public class FilmController {
         log.info("Пользователь {} ставит лайк фильму {}", userId, filmId);
         filmService.addLike(filmId, userId);
     }
+
     @DeleteMapping("/{filmId}/like/{userId}")
     public void removeLike(@PathVariable Long filmId,
                            @PathVariable Long userId) {
