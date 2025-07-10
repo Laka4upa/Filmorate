@@ -33,6 +33,7 @@ public class FilmService {
 
     public void addLike(Long filmId, Long userId) {
         Film film = filmStorage.getFilmById(filmId);
+        User user = userStorage.getUserById(userId);
 
         if (film.getWhoLiked() == null) {
             film.setWhoLiked(new HashSet<>());
