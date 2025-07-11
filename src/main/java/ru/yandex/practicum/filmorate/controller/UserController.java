@@ -7,42 +7,41 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.UserService;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 @RestController
 @RequestMapping("/users")
 @Slf4j
 @RequiredArgsConstructor
 public class UserController {
-    private final UserStorage userStorage;
     private final UserService userService;
 
     @PostMapping
     public User create(@Valid @RequestBody User user) {
         log.info("Добавлен новый пользователь с id: {}", user.getId());
-        return userStorage.create(user);
+        return userService.create(user);
     }
 
     @PutMapping
     public User update(@Valid @RequestBody User user) {
         log.info("Пользователь {} обновлён", user.getLogin());
-        return userStorage.update(user);
+        return userService.update(user);
     }
 
     @GetMapping
     public Collection<User> findAll() {
-        return userStorage.findAll();
+        return userService.findAll();
     }
 
-    @GetMapping("/{friendId}/friends")
-    public Collection<User> getFriends(@PathVariable Long friendId) {
-        return userService.getFriends(friendId);
+    @GetMapping("/{userId}/friends")
+    public Collection<User> getFriends(@PathVariable Long userId) {
+        return userService.getFriends(userId);
     }
 
-    @GetMapping("/{friendId}/friends/common/{userId}")
-    public Collection<User> getCommonFriends(@PathVariable Long friendId,
-                                             @PathVariable Long userId) {
-        return userService.getCommonFriends(friendId, userId);
+    @GetMapping("/{userId}/friends/common/{otherUserId}")
+    public Collection<User> getCommonFriends(
+            @PathVariable Long userId,
+            @PathVariable Long otherUserId) {
+        return userService.getCommonFriends(userId, otherUserId);
     }
 
     @PutMapping("/{userId}/friends/{friendId}")

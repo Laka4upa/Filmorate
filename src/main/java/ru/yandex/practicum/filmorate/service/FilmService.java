@@ -1,6 +1,6 @@
 package ru.yandex.practicum.filmorate.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exceptions.AlreadyExistsException;
 import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
@@ -9,19 +9,14 @@ import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class FilmService {
 
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
-
-    public FilmService(@Autowired FilmStorage filmStorage, @Autowired UserStorage userStorage) {
-        this.filmStorage = filmStorage;
-        this.userStorage = userStorage;
-    }
 
     public Collection<Film> getPopularFilms(int count) {
         return filmStorage.findAll()
@@ -34,16 +29,17 @@ public class FilmService {
     public void addLike(Long filmId, Long userId) {
         Film film = filmStorage.getFilmById(filmId);
         User user = userStorage.getUserById(userId);
-
-        if (film.getWhoLiked() == null) {
-            film.setWhoLiked(new HashSet<>());
+        if (film == null) {
+            throw new NotFoundException("Фильм с id " + filmId + " не найден");
         }
-
+        if (user == null) {
+            throw new NotFoundException("Пользователь с id " + userId + " не найден");
+        }
         if (film.getWhoLiked().contains(userId)) {
             throw new AlreadyExistsException("Пользователь уже поставил лайк этому фильму");
         }
 
-        film.addLike(userId);
+        film.getWhoLiked().add(userId);
     }
 
     public void removeLike(Long filmId, Long userId) {
@@ -56,7 +52,18 @@ public class FilmService {
         if (film.getWhoLiked() == null || !film.getWhoLiked().contains(userId)) {
             throw new NotFoundException("Лайк не найден");
         }
+        film.getWhoLiked().remove(userId);
+    }
 
-        film.removeLike(userId);
+    public Collection<Film> findAll() {
+        return filmStorage.findAll();
+    }
+
+    public Film create(Film film) {
+        return filmStorage.create(film);
+    }
+
+    public Film update(Film newFilm) {
+        return filmStorage.update(newFilm);
     }
 }

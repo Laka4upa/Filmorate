@@ -1,16 +1,13 @@
 package ru.yandex.practicum.filmorate.storage.user;
 
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.RequestBody;
 import ru.yandex.practicum.filmorate.exceptions.AlreadyExistsException;
 import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
 import ru.yandex.practicum.filmorate.exceptions.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 @Slf4j
@@ -19,7 +16,7 @@ public class InMemoryUserStorage implements UserStorage {
     private final Map<Long, User> users = new HashMap<>();
 
     @Override
-    public User create(@Valid @RequestBody User user) {
+    public User create(User user) {
         log.info("POST /users - попытка добавления пользователя: {}", user.getEmail());
         if (users.values()
                 .stream()
@@ -32,16 +29,13 @@ public class InMemoryUserStorage implements UserStorage {
             user.setName(user.getLogin());
             log.info("Имя пользователя не указано, будет использован логин: {}", user.getLogin());
         }
-        if (user.getFriends() == null) {
-            user.setFriends(new HashSet<>());
-        }
         users.put(user.getId(), user);
         log.info("Пользователь создан ID={}", user.getId());
         return user;
     }
 
     @Override
-    public User update(@Valid @RequestBody User user) {
+    public User update(User user) {
         if (user.getId() == null) {
             log.info("UPD: не указан Id при поиске пользователя");
             throw new ValidationException("Id должен быть указан");
