@@ -6,28 +6,52 @@ import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.Mpa;
+import ru.yandex.practicum.filmorate.repository.genre.JdbcGenreRepository;
+import ru.yandex.practicum.filmorate.repository.mpa.JdbcMpaRepository;
+
 import java.time.LocalDate;
 import java.util.Set;
-import static org.junit.jupiter.api.Assertions.*;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@SpringBootTest
 class FilmControllerTest {
     private Validator validator;
     private Film film;
     private static final LocalDate CINEMA_BIRTHDAY = LocalDate.of(1895, 12, 28);
 
+    @Autowired
+    private JdbcGenreRepository genreRepository;
+
+    @Autowired
+    private JdbcMpaRepository mpaRepository;
+
+    private Genre existingGenre;
+    private Mpa existingMpa;
+
     @BeforeEach
     void setUp() {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
-
         film = new Film();
         film.setName("Valid Film");
         film.setDescription("Valid description");
         film.setReleaseDate(CINEMA_BIRTHDAY);
         film.setDuration(120);
-    }
+        existingGenre = genreRepository.findAllGenres().stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("Жанры не найдены в базе"));
+        film.setGenres(Set.of(existingGenre));
+        existingMpa = mpaRepository.findAllMpa().stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("MPA рейтинги не найдены в базе"));
 
+        film.setMpa(existingMpa);
+    }
 
     @Test
     void shouldPassValidationWithCorrectData() {
