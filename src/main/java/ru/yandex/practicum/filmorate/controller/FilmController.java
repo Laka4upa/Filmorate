@@ -20,7 +20,7 @@ public class FilmController {
 
     @PostMapping
     public Film create(@Valid @RequestBody Film film) {
-        log.info("Попытка добавления нового фильма: {}", film.getName());;
+        log.info("Попытка добавления нового фильма: {}", film.getName());
         return filmService.create(film);
     }
 
@@ -42,7 +42,7 @@ public class FilmController {
     }
 
     @GetMapping("/popular")
-    public Collection<Film> getPopulateFilms(@RequestParam(defaultValue = "10") int count) {
+    public Collection<Film> getPopularFilms(@RequestParam(defaultValue = "10") int count) {
         return filmService.getPopularFilms(count);
     }
 

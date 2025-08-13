@@ -1,73 +1,103 @@
 package ru.yandex.practicum.filmorate.repository.friend;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import ru.yandex.practicum.filmorate.mapper.UserRowMapper;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.repository.user.JdbcUserRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({JdbcFriendRepository.class, UserRowMapper.class}) // Импортируем необходимые бины
-@DirtiesContext // Очищаем контекст после каждого теста
-public class JdbcFriendRepositoryIntegrationTest {
+@Import({JdbcFriendRepository.class, JdbcUserRepository.class, UserRowMapper.class})
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+class JdbcFriendRepositoryIntegrationTest {
 
     @Autowired
     private JdbcFriendRepository friendRepository;
 
+    @Autowired
+    private JdbcUserRepository userRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    private Long userId1;
+    private Long userId2;
+    private Long userId3;
+
+    @BeforeEach
+    void setUp() {
+        jdbcTemplate.update("DELETE FROM friends");
+        jdbcTemplate.update("DELETE FROM users");
+        userId1 = createUser("user1@example.com", "user1", "User One", LocalDate.of(1990, 1, 1));
+        userId2 = createUser("user2@example.com", "user2", "User Two", LocalDate.of(1991, 2, 2));
+        userId3 = createUser("user3@example.com", "user3", "User Three", LocalDate.of(1992, 3, 3));
+    }
+
     @Test
-    public void testAddFriend_increasesFriendsCount() {
-        Long userId = 1L;
-        Long friendId = 2L;
+    void testAddFriend_increasesFriendsCount() {
+        int countBefore = friendRepository.getFriends(userId1).size();
 
-        List<User> friendsBefore = friendRepository.getFriends(userId);
-        int countBefore = friendsBefore.size();
+        friendRepository.addFriend(userId1, userId2);
 
-        friendRepository.addFriend(userId, friendId);
-
-        List<User> friendsAfter = friendRepository.getFriends(userId);
-        int countAfter = friendsAfter.size();
+        int countAfter = friendRepository.getFriends(userId1).size();
 
         assertThat(countAfter).isEqualTo(countBefore + 1);
     }
 
     @Test
-    public void testRemoveFriend() {
-        Long userId = 1L; // Предполагается, что пользователь с id=1 уже существует в БД
-        Long friendId = 2L; // Предполагается, что пользователь с id=2 уже существует в БД
+    void testRemoveFriend() {
+        friendRepository.addFriend(userId1, userId2);
 
-        friendRepository.addFriend(userId, friendId); // Сначала добавляем друга
-        friendRepository.removeFriend(userId, friendId); // Затем удаляем
+        friendRepository.removeFriend(userId1, userId2);
 
-        boolean hasFriendship = friendRepository.hasFriendship(userId, friendId);
-        assertThat(hasFriendship).isFalse();
+        assertThat(friendRepository.hasFriendship(userId1, userId2)).isFalse();
     }
 
     @Test
-    public void testGetFriends() {
-        Long userId = 1L; // Предполагается, что пользователь с id=1 уже существует в БД и имеет друзей
+    void testGetFriends() {
+        friendRepository.addFriend(userId1, userId2);
+        friendRepository.addFriend(userId1, userId3);
 
-        List<User> friends = friendRepository.getFriends(userId);
+        List<User> friends = friendRepository.getFriends(userId1);
 
-        assertThat(friends).isNotEmpty(); // Проверяем, что список друзей не пустой
+        assertThat(friends)
+                .hasSize(2)
+                .extracting(User::getId)
+                .containsExactlyInAnyOrder(userId2, userId3);
     }
 
     @Test
-    public void testGetCommonFriends() {
-        Long userId1 = 1L; // Предполагается, что пользователь с id=1 уже существует в БД и имеет общих друзей
-        Long userId2 = 2L; // Предполагается, что пользователь с id=2 уже существует в БД и имеет общих друзей
+    void testGetCommonFriends() {
+        // userId3 — общий друг
+        friendRepository.addFriend(userId1, userId3);
+        friendRepository.addFriend(userId2, userId3);
 
         List<User> commonFriends = friendRepository.getCommonFriends(userId1, userId2);
 
-        assertThat(commonFriends).isNotEmpty(); // Проверяем, что список общих друзей не пустой
-        assertThat(commonFriends).hasSize(1);    // Ожидаем один общий друг
-        assertThat(commonFriends.get(0).getId()).isEqualTo(3L); // Общий друг имеет id = 3
+        assertThat(commonFriends)
+                .hasSize(1)
+                .extracting(User::getId)
+                .containsExactly(userId3);
+    }
+
+    private Long createUser(String email, String login, String name, LocalDate birthday) {
+        User user = new User();
+        user.setEmail(email);
+        user.setLogin(login);
+        user.setName(name);
+        user.setBirthday(birthday);
+        return userRepository.create(user).getId();
     }
 }

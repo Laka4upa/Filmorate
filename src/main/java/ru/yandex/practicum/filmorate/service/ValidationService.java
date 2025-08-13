@@ -60,6 +60,9 @@ public class ValidationService {
         if (film == null) {
             throw new ValidationException("Фильм не может быть null");
         }
+        if (film.getReleaseDate() == null) {
+            throw new ValidationException("Дата релиза обязательна для заполнения");
+        }
         LocalDate firstFilmEver = LocalDate.of(1895, 12, 28);
         if (film.getReleaseDate().isBefore(firstFilmEver)) {
             throw new ValidationException("Дата релиза не может быть раньше 28 декабря 1895 года");
