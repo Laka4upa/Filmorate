@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.repository.BaseRepository;
 import ru.yandex.practicum.filmorate.repository.genre.GenreRepository;
+import ru.yandex.practicum.filmorate.repository.like.LikeRepository;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -61,16 +62,21 @@ public class JdbcFilmRepository extends BaseRepository<Film> implements FilmRepo
     private static final String INSERT_GENRE_FILM_QUERY = "INSERT INTO film_genre(film_id, genre_id) VALUES(?, ?)";
 
     private final GenreRepository genreRepository;
+    private final LikeRepository likeRepository;
 
-    public JdbcFilmRepository(NamedParameterJdbcOperations jdbc, RowMapper<Film> mapper, GenreRepository genreRepository) {
+
+    public JdbcFilmRepository(NamedParameterJdbcOperations jdbc, RowMapper<Film> mapper,
+                              GenreRepository genreRepository, LikeRepository likeRepository) {
         super(jdbc, mapper);
         this.genreRepository = genreRepository;
+        this.likeRepository = likeRepository;
     }
 
     @Override
     public List<Film> findAll() {
         return findMany(FIND_ALL_FILMS_QUERY, new HashMap<>()).stream().peek(film -> {
             film.setGenres(genreRepository.findGenreByFilmId(film.getId()));
+            film.setLikes(likeRepository.findLikesByFilmId(film.getId()));
         }).collect(Collectors.toList());
     }
 
@@ -78,8 +84,10 @@ public class JdbcFilmRepository extends BaseRepository<Film> implements FilmRepo
     public Optional<Film> getFilmById(Long filmId) {
         Map<String, Object> params = new HashMap<>();
         params.put("filmId", filmId);
+
         return findOne(FIND_FILM_BY_ID_QUERY, params).map(film -> {
             film.setGenres(genreRepository.findGenreByFilmId(filmId));
+            film.setLikes(likeRepository.findLikesByFilmId(filmId));
             return film;
         });
     }

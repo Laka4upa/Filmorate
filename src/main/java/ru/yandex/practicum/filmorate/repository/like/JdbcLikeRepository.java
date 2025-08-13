@@ -4,8 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.stereotype.Repository;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @Repository
 @RequiredArgsConstructor
@@ -28,5 +27,16 @@ public class JdbcLikeRepository implements LikeRepository {
         params.put("filmId", filmId);
         params.put("userId", userId);
         jdbc.update(sql, params);
+    }
+
+    @Override
+    public Set<Long> findLikesByFilmId(Long filmId) {
+        Map<String, Object> params = Map.of("filmId", filmId);
+        List<Long> likes = jdbc.queryForList(
+                "SELECT user_id FROM likes WHERE film_id = :filmId",
+                params,
+                Long.class
+        );
+        return new HashSet<>(likes);
     }
 }

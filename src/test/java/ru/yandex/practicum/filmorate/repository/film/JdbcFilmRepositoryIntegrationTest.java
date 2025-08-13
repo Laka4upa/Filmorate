@@ -13,6 +13,7 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.repository.genre.JdbcGenreRepository;
+import ru.yandex.practicum.filmorate.repository.like.JdbcLikeRepository;
 import ru.yandex.practicum.filmorate.repository.mpa.JdbcMpaRepository;
 
 import java.time.LocalDate;
@@ -28,7 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         JdbcGenreRepository.class,
         GenreRowMapper.class,
         JdbcMpaRepository.class,
-        MpaRatingRowMapper.class
+        MpaRatingRowMapper.class,
+        JdbcLikeRepository.class
 })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD) // <--- ключевая строчка
 public class JdbcFilmRepositoryIntegrationTest {
@@ -49,9 +51,7 @@ public class JdbcFilmRepositoryIntegrationTest {
                         Genre.builder().id(2L).name("Драма").build()
                 )))
                 .build();
-
         Film createdFilm = filmRepository.create(film);
-
         assertThat(createdFilm).isNotNull();
         assertThat(createdFilm.getId()).isNotNull().isPositive();
         assertThat(createdFilm.getName()).isEqualTo("Test Film");
@@ -65,7 +65,6 @@ public class JdbcFilmRepositoryIntegrationTest {
     @Test
     public void testFindFilmById() {
         Optional<Film> foundFilm = filmRepository.getFilmById(1L);
-
         assertThat(foundFilm).isPresent();
         assertThat(foundFilm.get().getId()).isEqualTo(1L);
         assertThat(foundFilm.get().getName()).isEqualTo("Test Film 1");
@@ -75,7 +74,6 @@ public class JdbcFilmRepositoryIntegrationTest {
     @Test
     public void testFindAllFilms() {
         List<Film> films = filmRepository.findAll();
-
         assertThat(films).hasSize(2);
         assertThat(films).extracting(Film::getName)
                 .containsExactlyInAnyOrder("Test Film 1", "Test Film 2");
@@ -96,7 +94,6 @@ public class JdbcFilmRepositoryIntegrationTest {
                 .build();
 
         Film result = filmRepository.update(updatedFilm);
-
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getName()).isEqualTo("Updated Film");
         assertThat(result.getDescription()).isEqualTo("Updated Description");
@@ -109,7 +106,6 @@ public class JdbcFilmRepositoryIntegrationTest {
     @Test
     public void testDeleteFilm() {
         boolean deleted = filmRepository.delete(1L);
-
         assertThat(deleted).isTrue();
         assertThat(filmRepository.getFilmById(1L)).isEmpty();
     }
@@ -123,7 +119,6 @@ public class JdbcFilmRepositoryIntegrationTest {
     @Test
     public void testGetPopularFilms() {
         Collection<Film> popularFilms = filmRepository.getPopularFilms(2);
-
         assertThat(popularFilms).hasSize(2);
         assertThat(popularFilms)
                 .extracting(Film::getName)
