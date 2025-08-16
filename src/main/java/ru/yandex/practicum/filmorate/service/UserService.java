@@ -1,71 +1,62 @@
 package ru.yandex.practicum.filmorate.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
-import java.util.*;
-import java.util.stream.Collectors;
+import ru.yandex.practicum.filmorate.repository.user.UserRepository;
 
+import java.util.Collection;
+
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class UserService {
-    private final UserStorage userStorage;
-
-    public UserService(@Autowired UserStorage userStorage) {
-        this.userStorage = userStorage;
-    }
-
-    public Collection<User> getFriends(Long userId) {
-        List<User> friends = new ArrayList<>();
-        for (Long id : userStorage.getUserById(userId).getFriends()) {
-            friends.add(userStorage.getUserById(id));
-        }
-        return friends;
-    }
-
-    public Collection<User> getCommonFriends(Long userId1, Long userId2) {
-        User user1 = userStorage.getUserById(userId1);
-        User user2 = userStorage.getUserById(userId2);
-        if (user1 == null || user2 == null) {
-            throw new NotFoundException("Пользователь не найден.");
-        }
-        return user1.getFriends()
-                .stream()
-                .filter(user2.getFriends()::contains)
-                .map(userStorage::getUserById)
-                .collect(Collectors.toList());
-    }
-
-    public void addFriend(Long userId, Long friendId) {
-        User user = userStorage.getUserById(userId);
-        User friend = userStorage.getUserById(friendId);
-        if (user == null || friend == null) {
-            throw new NotFoundException("Пользователь не найден");
-        }
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
-    }
-
-    public void removeFriend(Long userId, Long friendId) {
-        User user = userStorage.getUserById(userId);
-        User friend = userStorage.getUserById(friendId);
-        if (user == null || friend == null) {
-            throw new NotFoundException("Пользователь не найден");
-        }
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
-    }
+    private final UserRepository userRepository;
+    private final ValidationService validationService;
 
     public Collection<User> findAll() {
-        return userStorage.findAll();
+        log.info("Попытка получения списка всех пользователей.");
+        return userRepository.findAll();
+    }
+
+    public User getUserById(Long userId) {
+        log.info("Попытка получения пользователя по ID: {}", userId);
+        validationService.validateUserExists(userId);
+        return userRepository.getUserById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с ID " + userId + " не найден."));
     }
 
     public User create(User user) {
-        return userStorage.create(user);
+        log.info("Попытка создания нового пользователя: email={}, login={}", user.getEmail(), user.getLogin());
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
+        User createdUser = userRepository.create(user);
+        log.info("Создан пользователь с ID: {}", createdUser.getId());
+        return createdUser;
     }
 
     public User update(User newUser) {
-        return userStorage.update(newUser);
+        log.info("Попытка обновления пользователя с ID: {}", newUser.getId());
+        validationService.validateUserExists(newUser.getId());
+        boolean userExists = userRepository.getUserById(newUser.getId()).isPresent();
+        if (!userExists) {
+            throw new NotFoundException("Пользователь с ID " + newUser.getId() + " не найден.");
+        }
+        if (newUser.getName() == null || newUser.getName().isBlank()) {
+            newUser.setName(newUser.getLogin());
+        }
+        User updatedUser = userRepository.update(newUser);
+        log.info("Пользователь с ID {} обновлен", newUser.getId());
+        return updatedUser;
+    }
+
+    public void delete(Long id) {
+        boolean deleted = userRepository.delete(id);
+        if (!deleted) {
+            throw new NotFoundException("Пользователь с id " + id + " не найден");
+        }
     }
 }

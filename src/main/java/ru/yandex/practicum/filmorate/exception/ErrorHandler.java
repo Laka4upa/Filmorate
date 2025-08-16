@@ -1,11 +1,13 @@
-package ru.yandex.practicum.filmorate.exceptions;
+package ru.yandex.practicum.filmorate.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -56,6 +58,26 @@ public class ErrorHandler {
                 .map(err -> "Поле '" + err.getField() + "': " + err.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         log.warn("Ошибка валидации: {}", message);
+        return new ErrorResponse("Ошибка валидации", message);
+    }
+
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.NOT_FOUND)  // Вернет 404
+    public ErrorResponse handleEmptyGenresException(EmptyGenresException e) {
+        log.warn("Ошибка: {}", e.getMessage());
+        return new ErrorResponse(
+                "Фильм не может быть создан",
+                e.getMessage()
+        );
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleConstraintViolation(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .collect(Collectors.joining("; "));
+
         return new ErrorResponse("Ошибка валидации", message);
     }
 }
